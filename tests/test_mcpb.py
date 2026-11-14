@@ -165,7 +165,7 @@ BUILD_ENV = "PORTWARD_BUILD_MCPB"
 def bundle(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The built `.mcpb` for this OS: the one CI built (`PORTWARD_MCPB`), or one built now (`PORTWARD_BUILD_MCPB=1`)."""
     if os.environ.get(BUNDLE_ENV):
-        return Path(os.environ[BUNDLE_ENV])
+        return Path(os.environ[BUNDLE_ENV]).resolve()  # the mcpb CLI runs in another folder, so a relative path breaks
     if os.environ.get(BUILD_ENV) != "1":
         pytest.skip(f"set {BUNDLE_ENV} to a built .mcpb, or {BUILD_ENV}=1 to build one (minutes)")
     return build_mcpb.build(tmp_path_factory.mktemp("mcpb-dist"))
