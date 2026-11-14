@@ -37,9 +37,10 @@ def manifest() -> dict:
 
 def mcpb(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run the pinned mcpb CLI (the one the build packs with)."""
-    if shutil.which("npx") is None:
+    npx = shutil.which("npx")  # npx.cmd on Windows, which only starts by its full path
+    if npx is None:
         pytest.skip("needs node (npx) on PATH")
-    return subprocess.run(["npx", "--yes", build_mcpb.MCPB_CLI, *args], cwd=cwd, capture_output=True, text=True, timeout=300)
+    return subprocess.run([npx, "--yes", build_mcpb.MCPB_CLI, *args], cwd=cwd, capture_output=True, text=True, timeout=300)
 
 
 def test_the_manifest_names_the_package_version() -> None:
