@@ -1,0 +1,2 @@
+# built packages and extensions (python mcpb/build_mcpb.py, uv build)
+dist/

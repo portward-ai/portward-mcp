@@ -1,0 +1,37 @@
+{
+  "manifest_version": "0.3",
+  "name": "portward",
+  "display_name": "Portward",
+  "version": "0.1.0",
+  "description": "Choose what Claude sees from your own database: local, read-only, every pull recorded.",
+  "long_description": "Portward connects Claude to your own data: SQLite, CSV and Excel files, and Postgres and MySQL databases. It only runs read-only queries, shows you the rows first in a results panel, and Claude gets only the rows you put in the chat. Database passwords stay in your computer's keychain, and a history of every pull stays on your machine. Nothing is sent anywhere else.",
+  "author": {
+    "name": "Portward",
+    "url": "https://portward.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamzaelsiesy/portward-mcp"
+  },
+  "homepage": "https://portward.ai",
+  "documentation": "https://docs.portward.ai",
+  "license": "Apache-2.0",
+  "keywords": ["database", "sql", "sqlite", "postgres", "mysql", "csv", "excel", "local", "read-only"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/portward-free",
+    "mcp_config": {
+      "command": "${__dirname}/server/portward-free",
+      "args": [],
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/portward-free.exe"
+        }
+      }
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "win32"]
+  }
+}

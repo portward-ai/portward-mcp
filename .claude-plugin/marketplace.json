@@ -1,0 +1,18 @@
+{
+  "name": "portward",
+  "owner": {
+    "name": "Portward",
+    "url": "https://portward.ai"
+  },
+  "metadata": {
+    "description": "Portward's plugins for Claude Code and Cowork."
+  },
+  "plugins": [
+    {
+      "name": "portward",
+      "source": "./plugin",
+      "version": "0.1.0",
+      "description": "Choose what Claude sees from your own database: a local, read-only MCP server."
+    }
+  ]
+}

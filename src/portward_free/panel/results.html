@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Portward results</title>
+<style>
+/*PORTWARD_STYLES*/
+  /* The results table with a pick box on every row, the columns to put in chat, and the button. Lifted from the
+     gateway's widget.html. The table shows while it fits the frame; when it doesn't, each row becomes a block of
+     label and value lines (.stacked), so nothing scrolls sideways inside the card. */
+  .head { display: grid; gap: 2px; margin-bottom: 12px; }
+  fieldset.columns { border: 0; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 0 16px; min-width: 0; }
+  fieldset.columns legend { padding: 0; margin-bottom: 2px; font-size: var(--text-caption); color: var(--muted); }
+  .answer { border: 1px solid var(--line); border-radius: var(--radius); }
+  .answer:empty, .answer.plain { border: 0; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; vertical-align: middle; padding: 6px 10px; border-bottom: 1px solid var(--hairline); overflow-wrap: break-word; }
+  td.whole { white-space: nowrap; }
+  td.prose { min-width: 11em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { font-weight: 500; color: var(--muted); font-size: var(--text-caption); background: var(--raised); border-bottom-color: var(--line); }
+  th.num, td.num { text-align: right; white-space: nowrap; }
+  /* the pick box: its label is the 44px target, drawn compact so a row of data stays a row */
+  th.pick, td.pick { width: 1%; padding: 0 0 0 4px; }
+  .pick label.check { min-height: 32px; position: relative; }
+  .pick label.check::after { content: ""; position: absolute; inset: -6px -4px; }
+  tr.picked td { background: var(--st-navy-300); }
+  tr.picked td.pick { box-shadow: inset 3px 0 0 var(--st-color-accent); }
+  /* a column the user left out: still shown to them, set back, and named so for screen readers */
+  th.left-out, td.left-out { color: var(--muted); }
+  /* what won't go to the AI reads as set aside at a glance: left-out cells hatched (over a picked row's colour too),
+     their header tagged, and rows not picked faded once some are */
+  td.left-out, tr.picked td.left-out { background: repeating-linear-gradient(-45deg, transparent 0 5px, var(--hairline) 5px 6px);
+                                       text-decoration: line-through; text-decoration-color: var(--muted); }
+  th .not-sent, th.left-out .not-sent { display: block; margin-top: 2px; font-size: 0.85em; letter-spacing: 0.02em; color: var(--st-color-accent); }
+  .some-picked tbody tr:not(.picked) td { opacity: 0.45; }
+  .some-picked tbody tr:not(.picked) td.pick { opacity: 1; }
+  /* a number is a button that shows where it came from; it reads as the value, set right like the column */
+  td button.value { color: inherit; text-decoration: underline dotted var(--muted); text-underline-offset: 3px;
+                    padding: 0 4px; margin: 0 -4px; font: inherit; font-variant-numeric: tabular-nums; }
+  td button.value.traced { background: var(--raised); box-shadow: inset 0 -2px 0 var(--st-color-accent); }
+  .stacked td button.value { justify-self: start; }
+  .source { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--line); border-left: 4px solid var(--st-color-accent);
+            border-radius: var(--radius-control); display: grid; gap: 6px; max-width: 70ch; }
+  .source-body { display: grid; gap: 6px; }
+  .source h2:focus { outline: none; }
+  .source h2:focus-visible { outline: var(--st-focus-ring-width) solid var(--ring); }
+  .source h3 { font-size: var(--text-caption); font-weight: 600; color: var(--muted); margin: 4px 0 0; }
+  .source ul { margin: 0; padding-left: 1.2em; }
+  .source .actions { margin-top: 2px; }
+  .source .actions button.quiet { margin-left: -8px; }
+  aside.usage, aside.offer { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--line);
+                border-radius: var(--radius-control); display: grid; gap: 4px; max-width: 70ch; }
+  aside.usage button.quiet, aside.offer button.quiet { justify-self: start; margin-left: -8px; }
+  .more { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; color: var(--muted); margin-top: 4px; }
+  /* results mode (#117): a receipt of what the AI got above the rows, kept columns hatched in the table */
+  .receipt { margin: 0 0 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-control);
+             display: grid; gap: 8px; max-width: 70ch; }
+  .receipt h2 { font-size: var(--text-caption); font-weight: 600; color: var(--muted); margin: 0; }
+  .receipt .tot { font-size: 1.25rem; line-height: 1.2; font-variant-numeric: tabular-nums; margin: 0; }
+  .receipt ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .receipt li.kept { text-decoration: line-through; color: var(--muted); }
+  .receipt .lbl { font-size: var(--text-caption); color: var(--muted); margin: 0; }
+  .receipt-mode td.left-out { text-decoration: none; }  /* the user's own values: hatched, still readable */
+  /* #119: a column header's menu (Keep from Claude, Note) and what an entry shows below the table */
+  th details.colmenu { display: inline-block; margin-left: 2px; position: relative; vertical-align: middle; }
+  th details.colmenu summary { list-style: none; cursor: pointer; min-width: 24px; min-height: 24px; display: inline-grid;
+                               place-items: center; border-radius: var(--radius-control); color: var(--muted); }
+  th details.colmenu summary::-webkit-details-marker { display: none; }
+  th details.colmenu summary:hover, th details.colmenu[open] summary { background: var(--hairline); color: var(--ink); }
+  th details.colmenu summary:focus-visible { outline: var(--st-focus-ring-width) solid var(--ring); }
+  th details.colmenu ul { position: absolute; z-index: 2; top: 100%; left: 0; margin: 4px 0 0; padding: 4px; list-style: none;
+                          min-width: 15em; background: var(--surface); border: 1px solid var(--line);
+                          border-radius: var(--radius-control); box-shadow: var(--st-elevation-raised); }
+  th.num details.colmenu ul { left: auto; right: 0; }
+  th details.colmenu li button { width: 100%; min-height: 32px; text-align: left; font-weight: 400; color: var(--ink);
+                                 text-decoration: none; }
+  /* stacked rows have no header row, so the headers become one wrapping line of names, each with its menu */
+  .stacked.menus thead { position: static; width: auto; height: auto; overflow: visible; clip-path: none; display: block; }
+  .stacked.menus thead tr { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .stacked.menus thead th { display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; text-align: left; }
+  .stacked.menus thead th.pick { width: auto; padding: 0 4px 0 0; }
+  /* a narrow panel: each menu opens under the line of names, from its left edge, so it never runs off the side */
+  .stacked.menus thead tr { position: relative; }
+  .stacked.menus thead th details.colmenu { position: static; }
+  .stacked.menus thead th details.colmenu ul { left: 0; right: auto; top: 100%; max-width: 100%; }
+  section.colmenu-said { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--line); border-left: 4px solid var(--st-color-accent);
+                         border-radius: var(--radius-control); display: grid; gap: 8px; max-width: 70ch; }
+  section.colmenu-said h2 { font-size: var(--text-caption); font-weight: 600; color: var(--muted); margin: 0; }
+  section.colmenu-said h2:focus { outline: none; }
+  section.colmenu-said h2:focus-visible { outline: var(--st-focus-ring-width) solid var(--ring); }
+  section.colmenu-said textarea { width: 100%; font: inherit; padding: 6px 8px; color: var(--ink); background: var(--surface);
+                                  border: 1px solid var(--line); border-radius: var(--radius-control); resize: vertical; }
+  section.colmenu-said .actions { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin: 0; }
+  .put { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+  .put p { flex: 1 1 16em; }
+  /* each row a block: the column's name beside its value */
+  /* compact: before stacking, tighter cells and long single words (emails, ids) allowed to wrap, so a frame like
+     Claude Desktop's (about 730px) still shows a table for a typical result */
+  .compact th, .compact td { padding: 6px 6px; }
+  .compact td.long { white-space: normal; overflow-wrap: anywhere; }
+  .compact th { overflow-wrap: normal; hyphens: auto; }
+  .answer.stacked { border-width: 1px 0 0; border-radius: 0; }
+  .stacked table, .stacked tbody, .stacked tr, .stacked td { display: block; }
+  .stacked thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .stacked tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .stacked td { display: grid; grid-template-columns: minmax(7em, 35%) minmax(0, 1fr); gap: 12px; align-items: baseline;
+                padding: 2px 0; border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .stacked td::before { content: attr(data-label); color: var(--muted); font: var(--text-caption) var(--font); }
+  .stacked td.pick { display: block; width: auto; }
+  .stacked td.pick::before { content: none; }
+  /* #120: the preview a Personal level opens from the column menu (panel/levels.js) */
+  section.level-preview { margin-top: 12px; padding: 12px 16px; border: 1px solid var(--line); border-left: 4px solid var(--st-color-accent);
+                    border-radius: var(--radius-control); display: grid; gap: 8px; max-width: 70ch; }
+  section.level-preview h2:focus { outline: none; }
+  section.level-preview h2:focus-visible { outline: var(--st-focus-ring-width) solid var(--ring); }
+  section.level-preview table { border: 1px solid var(--line); }
+  section.level-preview td.ai { font-family: var(--mono); font-size: 0.9em; }
+  section.level-preview .tot { font-size: 1.25rem; line-height: 1.2; font-variant-numeric: tabular-nums; margin: 0; }
+  section.level-preview aside.offer { margin: 0; }
+  @container widget (max-width: 479px) {
+    .stacked td { grid-template-columns: minmax(0, 9em) minmax(0, 1fr); gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header class="head">
+  <h1>Results</h1>
+  <p class="status" id="status" role="status"></p>
+</header>
+<div id="usage"></div>
+<div class="skeleton" id="loading" aria-busy="true">
+  <p class="visually-hidden" role="status">Loading results</p>
+  <div aria-hidden="true"><span class="bone m"></span><span class="bone row"></span><span class="bone row"></span><span class="bone row"></span></div>
+</div>
+<section class="receipt" id="receipt" aria-labelledby="receipt-h" hidden></section>
+<fieldset class="columns" id="columns" hidden><legend>Columns to put in chat</legend></fieldset>
+<div class="answer" id="answer"></div>
+<section class="source" id="source" aria-labelledby="source-h" aria-live="polite" hidden></section>
+<div id="colmenu"></div>
+<p class="more" id="more" hidden><span id="more-text"></span><button class="quiet" type="button" id="more-go"></button>
+  <button class="quiet" type="button" id="pick-all"></button></p>
+<div class="put" id="put" hidden>
+  <button class="primary" type="button" id="put-go">Put in chat</button>
+  <p class="caption" id="put-note"></p>
+</div>
+</main>
+<script>/*PORTWARD_HOST*/</script>
+<script>
+"use strict";
+// The rows come from the local server through the host (the app-only panel_rows tool); the AI never gets them from
+// the query. "Put in chat" asks the server (put_in_chat) to record exactly the rows and columns picked here as a
+// selection, and posts the short note it returns (the selection's id, counts and column names, no values) as a
+// visible message from the user. Claude puts it in the message box and the user presses send; the AI then fetches
+// the picked rows with get_selection, a tool result the user can expand.
+const { el, plural } = PortwardUI;
+const PAGE_ROWS = 25;  // rows added to the table at a time
+const statusEl = document.getElementById("status");
+const answerEl = document.getElementById("answer");
+const host = () => PortwardHost.hostName();
+let pull = null;       // {pull_id, columns, rows, row_count, truncated, stand_ins} as the panel was lent it
+let picked = new Set();     // row positions the user picked
+let included = new Set();   // column names the user keeps in
+let shown = PAGE_ROWS;
+let receipt = null;  // results mode (#117): {sent_rows, row_count, sent_columns, kept_columns}; no picking then
+let rulesChanged = false;  // #119: a column was kept from a header menu; these rows can't be put in chat any more
+
+function setStatus(text, tone) { statusEl.textContent = text; statusEl.dataset.tone = tone || ""; }
+function done() { const loading = document.getElementById("loading"); if (loading) loading.remove(); }
+function plain(node) { answerEl.className = "answer plain"; answerEl.replaceChildren(node); }
+
+function renderColumns() {
+  const box = document.getElementById("columns");
+  const boxes = pull.columns.map((name) => el("label", { class: "check", title: name },
+    el("input", { type: "checkbox", checked: included.has(name), onchange: (event) => {
+      included = new Set(pull.columns.filter((c) => (c === name ? event.target.checked : included.has(c))));
+      renderTable(); renderPut();
+    } }), PortwardUI.label(name)));
+  box.replaceChildren(el("legend", {}, "Columns to put in chat"), ...boxes);
+  box.hidden = false;
+}
+
+function setPicked(next) { picked = next; renderTable(); renderPut(); }
+// Rows not picked fade only while some are: with none picked, nothing is on its way yet and every row reads normally.
+function markSomePicked(answer) { answer.classList.toggle("some-picked", picked.size > 0 && picked.size < (pull ? pull.rows.length : 0)); }
+
+function pickBox(position) {
+  return el("td", { class: "pick" }, el("label", { class: "check" },
+    el("input", { type: "checkbox", checked: picked.has(position), "aria-label": "Pick row " + (position + 1),
+                  onchange: (event) => {
+                    const next = new Set(picked);
+                    if (event.target.checked) next.add(position); else next.delete(position);
+                    setPicked(next);
+                    document.querySelector(`[aria-label="Pick row ${position + 1}"]`).focus();
+                  } })));
+}
+
+function renderTable() {
+  const { columns, rows } = pull;
+  const visible = rows.slice(0, shown);
+  const numeric = columns.map((_, i) => PortwardUI.numeric(rows.map((r) => r[i])));
+  const allShown = visible.length > 0 && visible.every((_, r) => picked.has(r));
+  const headPick = el("th", { class: "pick", scope: "col" }, el("label", { class: "check" },
+    el("input", { type: "checkbox", checked: allShown, "aria-label": "Pick every row shown", onchange: (event) => {
+      const next = new Set(picked);
+      visible.forEach((_, r) => (event.target.checked ? next.add(r) : next.delete(r)));
+      setPicked(next);
+      document.querySelector('[aria-label="Pick every row shown"]').focus();
+    } })));
+  const standIns = new Set(pull.stand_ins || []);  // anonymised: real values here, stand-ins for the AI
+  const outTag = receipt ? "kept from " + host() : "not sent";
+  const head = el("tr", {}, receipt ? null : headPick, columns.map((name, i) => {
+    const out = !included.has(name);
+    return el("th", { scope: "col", title: name, class: [numeric[i] ? "num" : "", out ? "left-out" : ""].join(" ").trim() || null },
+      PortwardUI.label(name), out ? el("span", { class: "not-sent" }, outTag) : null,
+      !out && standIns.has(name) ? el("span", { class: "not-sent", title: "You see the real values; the AI gets a stand-in for each" }, "AI gets stand-ins") : null,
+      columnMenu(name));
+  }));
+  const body = visible.map((row, r) => {
+    const tr = el("tr", { class: picked.has(r) ? "picked" : null }, receipt ? null : pickBox(r));
+    row.forEach((cell, i) => {
+      const td = el("td", { "data-label": PortwardUI.label(columns[i]) });
+      const shownValue = cell === null ? "" : numeric[i] ? PortwardUI.number(cell, columns[i]) : String(cell);
+      if (numeric[i] && cell !== null) td.append(sourceButton(shownValue, r, columns[i]));
+      else td.textContent = shownValue;
+      td.className = [numeric[i] ? "num" : PortwardUI.cellWrap(cell) || "", included.has(columns[i]) ? "" : "left-out"].join(" ").trim();
+      tr.append(td);
+    });
+    return tr;
+  });
+  answerEl.className = (receipt ? "answer receipt-mode" : "answer") + (pull.block_rules ? " menus" : "");
+  markSomePicked(answerEl);
+  answerEl.replaceChildren(PortwardUI.tableRoles(el("table", { "aria-describedby": "status" }, el("thead", {}, head), el("tbody", {}, body))));
+  const first = receipt ? 0 : 1;  // the pick box comes first when there is one
+  for (const tr of body) if (tr.childNodes[first]) tr.childNodes[first].setAttribute("role", "rowheader");  // the first value names the row
+  renderMore();
+  fit();
+}
+
+// A number is a button: it asks the server (value_source) which tables, columns and filters it came from.
+let tracing = null;  // {row, column} of the value whose source is shown
+function sourceButton(text, row, column) {
+  const open = tracing && tracing.row === row && tracing.column === column;
+  return el("button", { class: "quiet value" + (open ? " traced" : ""), type: "button", "data-row": row, "data-column": column,
+                        onclick: (event) => showSource(row, column, event.currentTarget) },
+    text, el("span", { class: "visually-hidden" }, " (where it came from)"));
+}
+
+async function showSource(row, column, button) {
+  const box = document.getElementById("source");
+  tracing = { row, column };
+  for (const b of answerEl.querySelectorAll("button.value")) b.classList.toggle("traced", b === button);
+  box.hidden = false;
+  const heading = el("h2", { id: "source-h", tabindex: "-1" }, `Where ${PortwardUI.label(column).toLowerCase()} in row ${row + 1} came from`);
+  const body = el("div", { class: "source-body" }, el("p", { class: "caption" }, "Reading the query…"));
+  box.replaceChildren(heading, body);
+  heading.focus();
+  let found;
+  try {
+    found = (await PortwardHost.callTool("value_source", { pull_id: pull.pull_id, row, column })).structuredContent || {};
+  } catch (err) {
+    body.replaceChildren(PortwardUI.problem("Couldn't trace this value", err.message, null), closeButton());
+    return;
+  }
+  const text = PortwardUI.sourceText(found);
+  body.replaceChildren(el("p", {}, text.summary),
+    el("h3", {}, "From"), el("ul", {}, text.from.map((f) => el("li", {}, el("span", { class: "id" }, f)))),
+    el("h3", {}, "Filters"), el("ul", {}, text.filters.map((f) => el("li", {}, f))),
+    found.source ? el("p", { class: "caption" }, "Source: ", el("span", { class: "id" }, found.source)) : null,
+    closeButton());
+}
+
+function closeButton() {
+  return el("p", { class: "actions" }, el("button", { class: "quiet", type: "button", onclick: closeSource }, "Close"));
+}
+
+function closeSource() {
+  const back = tracing && answerEl.querySelector(`button.value[data-row="${tracing.row}"][data-column="${CSS.escape(tracing.column)}"]`);
+  tracing = null;
+  document.getElementById("source").hidden = true;
+  for (const b of answerEl.querySelectorAll("button.value.traced")) b.classList.remove("traced");
+  if (back) back.focus();
+}
+
+// #119: on block rules (Free), each column header has one menu: Keep from Claude and Say what this means
+// (PortwardColumnMenu), then Personal's levels (#120, PortwardLevels). What an entry shows goes below the table, and
+// its heading takes the focus. Escape closes the menu and returns to its button.
+function columnMenu(name) {
+  if (!pull.block_rules) return null;
+  const menu = el("details", { class: "colmenu" });
+  const summary = el("summary", { "aria-label": `More for ${PortwardUI.label(name)}`, title: "More" }, "⋯");
+  const mount = (section) => {
+    document.getElementById("colmenu").replaceChildren(section);
+    const h = section.querySelector("h2");
+    if (h) h.focus();
+  };
+  const entries = [
+    ...PortwardColumnMenu.menuEntries(pull.pull_id, name, PortwardHost.callTool, mount, host(),
+                                      () => { rulesChanged = true; if (!receipt) renderPut(); }),
+    ...PortwardLevels.menuEntries(pull.pull_id, name, PortwardHost.callTool, mount, host()),
+  ];
+  menu.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && menu.open) { menu.open = false; summary.focus(); }
+  });
+  PortwardUI.put(menu, summary, el("ul", {}, entries.map((entry) => el("li", {}, el("button", { class: "quiet", type: "button",
+    onclick: () => { menu.open = false; entry.run(); } }, entry.label)))));
+  return menu;
+}
+
+function renderMore() {
+  const more = document.getElementById("more");
+  const total = pull.rows.length;
+  more.hidden = total <= PAGE_ROWS;
+  if (more.hidden) return;
+  document.getElementById("more-text").textContent = `Showing ${Math.min(shown, total)} of ${total} rows.`;
+  const go = document.getElementById("more-go");
+  go.hidden = shown >= total;
+  go.textContent = `Show ${Math.min(PAGE_ROWS, total - shown)} more`;
+  go.onclick = () => { shown += PAGE_ROWS; renderTable(); go.hidden ? document.getElementById("pick-all").focus() : go.focus(); };
+  const all = document.getElementById("pick-all");
+  all.hidden = Boolean(receipt);
+  const everything = picked.size === total;
+  all.textContent = everything ? "Clear all picks" : `Pick all ${total} rows`;
+  all.onclick = () => { setPicked(everything ? new Set() : new Set(pull.rows.map((_, r) => r))); all.focus(); };
+}
+
+function renderPut() {
+  const button = document.getElementById("put-go");
+  const note = document.getElementById("put-note");
+  const ready = picked.size > 0 && included.size > 0;
+  button.disabled = !ready || !PortwardHost.canPutInChat() || rulesChanged;
+  const who = host();
+  if (rulesChanged) note.textContent = `You kept a column from ${who}, so these rows can't go in the chat. Ask again in the chat for a new result.`;
+  else if (!PortwardHost.canPutInChat()) note.textContent = `This app can't put text in the chat. ${who} has seen none of these rows.`;
+  else if (!ready) note.textContent = `Pick the rows and columns to give ${who}. ${who} has seen none of them yet.`;
+  else note.textContent = `${plural(picked.size, "row")} and ${plural(included.size, "column")} picked. ` +
+    (who === "ChatGPT" ? `A short note is sent to ChatGPT as your message; ChatGPT then fetches the ${plural(picked.size, "row")} you picked.`
+                       : `A short note goes into your message box; when you press send, ${who} fetches the ${plural(picked.size, "row")} you picked.`);
+  document.getElementById("put").hidden = false;
+}
+
+async function putInChat() {
+  const button = document.getElementById("put-go");
+  button.disabled = true;
+  try {
+    const result = await PortwardHost.callTool("put_in_chat", {
+      pull_id: pull.pull_id, rows: [...picked].sort((a, b) => a - b), columns: pull.columns.filter((c) => included.has(c)),
+    });
+    const text = (result.structuredContent || {}).text;
+    if (!text) throw new Error("Portward didn't return the message");
+    const outcome = await PortwardHost.putInChat(text);
+    setStatus(outcome === "sent" ? `In the chat: ${host()} fetches the ${plural(picked.size, "row")} you picked.`
+                                 : `A short note is in your message box. When you press send, ${host()} fetches the ${plural(picked.size, "row")} you picked.`, "ok");
+  } catch (err) {
+    setStatus("Couldn't put that in the chat. " + PortwardUI.sentence(err.message), "err");
+  } finally {
+    renderPut();
+  }
+}
+document.getElementById("put-go").addEventListener("click", putInChat);
+
+// Table while it fits the frame, compact if that's what it takes; one block per row only once even that doesn't.
+let measured = 0;
+function fit() {
+  const grid = answerEl.querySelector("table");
+  if (!grid) return;
+  const overflows = () => grid.scrollWidth > answerEl.clientWidth + 1;
+  answerEl.classList.remove("stacked", "compact");
+  if (!overflows()) return;
+  answerEl.classList.add("compact");
+  if (!overflows()) return;
+  answerEl.classList.remove("compact");
+  answerEl.classList.add("stacked");
+}
+if (typeof ResizeObserver === "function") {
+  new ResizeObserver((entries) => {
+    const width = Math.round(entries[0].contentRect.width);
+    if (width !== measured) { measured = width; fit(); }
+  }).observe(answerEl);
+}
+
+// Results mode: the AI already has its rows. The receipt says how many rows and which columns it got, and which
+// columns the user keeps from it (shown here, hatched, and never sent).
+function renderReceipt() {
+  const box = document.getElementById("receipt");
+  const who = host();
+  const total = receipt.truncated ? `more than ${receipt.row_count}` : String(receipt.row_count);
+  const kept = receipt.kept_columns || [];
+  box.replaceChildren(
+    el("h2", { id: "receipt-h" }, `What ${who} got`),
+    el("p", { class: "tot" }, `${receipt.sent_rows} of ${total} rows`),
+    el("p", { class: "lbl" }, receipt.sent_rows
+      ? `${plural(receipt.sent_columns.length, "column")}, sent with ${who}'s answer.`
+      : `Nothing: the query uses columns you keep from ${who}.`),
+    receipt.sent_columns.length ? el("ul", { "aria-label": "Columns sent" },
+      receipt.sent_columns.map((c) => el("li", {}, el("span", { class: "id" }, c)))) : null,
+    kept.length ? el("p", { class: "lbl" }, `Kept from ${who}, shown only to you`) : null,
+    kept.length ? el("ul", { "aria-label": `Kept from ${who}` },
+      kept.map((c) => el("li", { class: "kept" }, el("span", { class: "id" }, c)))) : null);
+  box.hidden = false;
+}
+
+async function handleResult(result) {
+  PortwardUI.showUsage(result, document.getElementById("usage"), PortwardHost.callTool);
+  const failed = PortwardUI.failure(result);
+  if (failed) {
+    done();
+    plain(PortwardUI.problem("The query didn't run", failed, "Ask again in the chat."));
+    return;
+  }
+  const data = (result && result.structuredContent) || {};
+  if (data.shown_in !== "panel" || !data.pull_id) {
+    done();
+    plain(PortwardUI.empty("This result isn't in the panel.", `${host()} has it in the chat.`));
+    return;
+  }
+  let lent;
+  try {
+    lent = (await PortwardHost.callTool("panel_rows", { pull_id: data.pull_id })).structuredContent || {};
+  } catch (err) {
+    done();
+    plain(PortwardUI.problem("The rows aren't available", err.message, "Ask the question again in the chat."));
+    return;
+  }
+  done();
+  pull = { pull_id: lent.pull_id, columns: lent.columns || [], rows: lent.rows || [], row_count: lent.row_count, truncated: lent.truncated,
+           block_rules: lent.block_rules === true };
+  if (!pull.rows.length) {
+    plain(PortwardUI.empty("No rows matched this question.", "Try a wider question in the chat."));
+    return;
+  }
+  receipt = lent.receipt || null;
+  if (receipt) {
+    included = new Set(pull.columns.filter((c) => !(receipt.kept_columns || []).includes(c)));
+    setStatus(`Only you see the hatched columns. ${host()} got ${plural(receipt.sent_rows, "row")}.`);
+    renderReceipt();
+    renderTable();
+    return;
+  }
+  included = new Set(pull.columns);
+  const total = pull.truncated ? `more than ${pull.row_count}` : String(pull.row_count);
+  const lentNote = pull.rows.length < pull.row_count || pull.truncated ? ` You can pick from the first ${pull.rows.length}.` : "";
+  const anyNumber = pull.columns.some((_, i) => PortwardUI.numeric(pull.rows.map((r) => r[i])));
+  setStatus(`${total} rows. Only you see them here.${lentNote}${anyNumber ? " Select a number to see where it came from." : ""}`);
+  renderColumns();
+  renderTable();
+  renderPut();
+}
+
+PortwardHost.start(handleResult);
+</script>
+</body>
+</html>

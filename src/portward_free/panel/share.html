@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Portward share</title>
+<style>
+/*PORTWARD_STYLES*/
+  /* A new share: who it's for, what's in it and when it ends, then the link to copy. The link is the one thing to
+     act on, so it sits on its own raised surface with the primary button; the mail app is the quiet second way. */
+  .head { display: grid; gap: 2px; margin-bottom: 12px; }
+  .lock { color: var(--st-trust-grounded-text); font-size: var(--text-caption); font-weight: 500; }
+  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0 0 16px; }
+  .facts dt { color: var(--muted); font-size: var(--text-caption); align-self: baseline; }
+  .facts dd { margin: 0; overflow-wrap: anywhere; }
+  .facts .columns { color: var(--muted); }
+  .options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; padding: 0; list-style: none; }
+  .options li { font-size: var(--text-caption); border: 1px solid var(--line); border-radius: var(--st-radius-pill);
+                padding: 1px 10px; color: var(--ink); }
+  .options b { font-weight: 500; color: var(--muted); }
+  .send { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius);
+          background: var(--raised); max-width: 44rem; }
+  .send label { font-weight: 500; }
+  .send input { font-family: var(--mono); font-size: var(--text-caption); background: var(--surface); text-overflow: ellipsis; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .said:empty { display: none; }
+  .said[data-tone="ok"] { color: var(--st-trust-grounded-text); }
+  .said[data-tone="err"] { color: var(--st-trust-blocked-text); }
+  .why { margin-top: 12px; max-width: 60ch; }
+  @container widget (max-width: 420px) {
+    .facts { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .facts dd { margin-bottom: 8px; }
+    .row button { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header class="head">
+  <p class="lock">Encrypted on this computer</p>
+  <h1 id="title">Ready to send</h1>
+  <p class="status" id="status" role="status"></p>
+</header>
+<div id="body">
+  <div class="skeleton" aria-busy="true">
+    <p class="visually-hidden" role="status">Loading the share</p>
+    <div aria-hidden="true"><span class="bone m"></span><span class="bone l"></span><span class="bone row"></span></div>
+  </div>
+</div>
+</main>
+<script>/*PORTWARD_HOST*/</script>
+<script>
+"use strict";
+// A new share's link reaches this panel only through the app-only share_link tool, keyed by the share's public id
+// in the visible result: the AI's result never has the link (its # part is the key that opens the table). Copy link
+// puts it on the clipboard (or, where the sandbox blocks that, selects it for the user to copy); Open in mail app asks
+// the local server (app-only share_mail) to open the same draft a share used to open. Nothing goes in the chat.
+const { el, plural, sentence } = PortwardUI;
+const bodyEl = document.getElementById("body");
+const titleEl = document.getElementById("title");
+const statusEl = document.getElementById("status");
+const host = () => PortwardHost.hostName();
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+
+function setStatus(text, tone) { statusEl.textContent = text; statusEl.dataset.tone = tone || ""; }
+
+function when(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso || "");
+  return date.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric",
+                                          hour: "numeric", minute: "2-digit" });
+}
+
+function contents(data) {
+  const columns = data.columns || [];
+  const rows = data.totals ? plural(data.row_count || 0, "group") + " of totals" : plural(data.row_count || 0, "row");
+  const options = data.options || {};
+  const chips = [["Hidden", options.hidden], ["Anonymised", options.anonymised], ["Totals only", options.totals]]
+    .filter(([, names]) => names && names.length)
+    .map(([what, names]) => el("li", {}, el("b", {}, what + ": "), names.join(", ")));
+  // Sealed in the share with the rows (allow_download): only a real true lets the teammate download a CSV.
+  const access = data.allow_download === true
+    ? el("li", { class: "access" }, "Download: allowed")
+    : el("li", { class: "access" }, "View only");
+  return [el("span", {}, `${rows}, ${plural(columns.length, "column")}`), " ",
+          el("span", { class: "columns" }, "(" + columns.join(", ") + ")"),
+          el("ul", { class: "options", "aria-label": "Share options" }, ...chips, access)];
+}
+
+function facts(data) {
+  return el("dl", { class: "facts" },
+    el("dt", {}, "For"), el("dd", { class: "id" }, data.recipient || ""),
+    el("dt", {}, "What's in it"), el("dd", {}, ...contents(data)),
+    el("dt", {}, "Expires"), el("dd", {}, when(data.expires_at)));
+}
+
+// The clipboard API is often blocked in a sandboxed frame; then the older copy command, then the user's own keys.
+async function copyLink(input, said) {
+  try {
+    await navigator.clipboard.writeText(input.value);
+    tell(said, "Copied. Paste it into an email or message to your teammate.", "ok");
+    return;
+  } catch (err) { /* blocked here: try the next way */ }
+  input.focus();
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  let copied = false;
+  try { copied = document.execCommand("copy"); } catch (err) { copied = false; }
+  if (copied) tell(said, "Copied. Paste it into an email or message to your teammate.", "ok");
+  else tell(said, `${host()} doesn't let this panel copy. The link is selected: press ${IS_MAC ? "⌘C" : "Ctrl+C"} to copy it.`);
+}
+
+async function openMail(shareId, button, said) {
+  button.disabled = true;
+  tell(said, "Opening your mail app…");
+  try {
+    const result = await PortwardHost.callTool("share_mail", { share_id: shareId });
+    const data = (result && result.structuredContent) || {};
+    tell(said, data.opened ? "A draft with the link is open in your mail app: send it from there."
+                           : "Your mail app couldn't be opened from here. Copy the link instead.", data.opened ? "ok" : "err");
+  } catch (err) { tell(said, sentence(err.message), "err"); }
+  button.disabled = false;
+}
+
+function tell(node, text, tone) { node.textContent = text; node.dataset.tone = tone || ""; }
+
+function linkBlock(data, link) {
+  const said = el("p", { class: "caption said", role: "status", id: "said" });
+  const input = el("input", { type: "text", id: "link", readonly: true, value: link, spellcheck: "false",
+                              autocomplete: "off", "aria-describedby": "said",
+                              onfocus: (event) => event.target.select() });
+  const copy = el("button", { class: "primary", type: "button", onclick: () => copyLink(input, said) }, "Copy link");
+  const mail = el("button", { type: "button", onclick: () => openMail(data.share_id, mail, said) }, "Open in mail app");
+  return el("section", { class: "send", "aria-label": "The link" },
+    el("label", { for: "link" }, "Link"), input, el("div", { class: "row" }, copy, mail), said);
+}
+
+function why(data) {
+  return el("p", { class: "caption why" }, `Nothing has been sent yet: send the link to ${data.recipient} yourself. `
+    + `${host()} never sees it, because it holds the key that opens the table. They open it with a code Portward emails them.`);
+}
+
+async function handleResult(result) {
+  const failed = PortwardUI.failure(result);
+  if (failed) { titleEl.textContent = "Not shared"; bodyEl.replaceChildren(PortwardUI.problem("That didn't work", failed, "Ask again in the chat.")); return; }
+  const data = (result && result.structuredContent) || {};
+  if (typeof data.share_id !== "string" || !data.share_id) {
+    bodyEl.replaceChildren(PortwardUI.empty("There's no share to show here.", `${host()} has the answer in the chat.`));
+    return;
+  }
+  titleEl.textContent = "Ready to send";
+  if (data.link_in !== "panel") {
+    bodyEl.replaceChildren(facts(data), PortwardUI.empty(data.draft_opened
+      ? "The link is in a draft in your mail app: send it from there."
+      : "Your mail app couldn't be opened, so the link wasn't delivered.", "Share again to get a new link."));
+    return;
+  }
+  bodyEl.replaceChildren(facts(data), el("div", { class: "skeleton", "aria-busy": "true" },
+    el("p", { class: "visually-hidden", role: "status" }, "Loading the link"),
+    el("div", { "aria-hidden": "true" }, el("span", { class: "bone row" }))));
+  try {
+    const read = await PortwardHost.callTool("share_link", { share_id: data.share_id });
+    const link = read && read.structuredContent && read.structuredContent.link;
+    if (typeof link !== "string" || !link) throw new Error("Portward sent no link");
+    bodyEl.replaceChildren(facts(data), linkBlock(data, link), why(data));
+  } catch (err) {
+    bodyEl.replaceChildren(facts(data), PortwardUI.problem("The link isn't available", err.message, "Share again to get a new link."));
+  }
+}
+
+PortwardHost.start(handleResult);
+</script>
+</body>
+</html>

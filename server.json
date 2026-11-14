@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.portward/portward",
+  "title": "Portward",
+  "description": "Choose what the AI sees from your own database: local, read-only, every pull recorded.",
+  "websiteUrl": "https://portward.ai",
+  "repository": {
+    "url": "https://github.com/hamzaelsiesy/portward-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "portward-free",
+      "version": "0.1.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

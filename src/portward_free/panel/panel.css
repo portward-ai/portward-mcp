@@ -1,0 +1,102 @@
+  /* The results panel inside Claude and ChatGPT, lifted from the gateway's widget.css (inlined after tokens.css).
+     Text, surfaces, lines, focus and type read the host's style variables, which the host bridge copies onto the
+     page; the Deep Water value after each one is what a host without them shows. The page stays transparent so
+     the conversation shows through. Our own colour is the accent on a primary action and the trust colours,
+     which carry meaning. No font is loaded: the face is the host's, or one already on the computer.
+     Layout follows the frame's width (the "widget" container), from 320px: never the screen's. Every control is a
+     44px target, nothing scrolls inside the card, and nothing sticks: the host sizes the frame to the content. */
+  :root {
+    --font: var(--font-sans, var(--st-font-sans));
+    --mono: var(--font-mono, var(--st-font-mono));
+    --text-caption: var(--font-text-xs-size, 12px);
+    --text-body: var(--font-text-sm-size, 14px);
+    --text-heading: var(--font-heading-md-size, 16px);
+    --ink: var(--color-text-primary, var(--st-color-text-primary));
+    --heading: var(--color-text-primary, var(--st-color-heading));
+    --muted: var(--color-text-secondary, var(--st-color-text-secondary));
+    --link: var(--color-text-info, var(--st-color-link));
+    --surface: var(--color-background-primary, var(--st-color-surface-raised));
+    --raised: var(--color-background-secondary, var(--st-color-surface-sunken));
+    --hover: var(--color-background-secondary, var(--st-color-surface-hover));
+    --line: var(--color-border-tertiary, var(--st-color-border));
+    --hairline: var(--color-border-tertiary, var(--st-color-hairline));
+    --line-control: var(--color-border-primary, var(--st-color-border-control));
+    --ring: var(--color-ring-primary, var(--st-focus-ring-color));
+    --radius-control: var(--border-radius-sm, var(--st-radius-control));
+    --radius: var(--border-radius-md, var(--st-radius-card));
+    --target: 44px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }  /* over any layout rule that sets display */
+  html, body { margin: 0; background: transparent; }
+  /* the host's safe area (the bridge sets --safe-*) on top of our own 12px */
+  body { padding: calc(12px + var(--safe-top, 0px)) calc(12px + var(--safe-right, 0px))
+                  calc(12px + var(--safe-bottom, 0px)) calc(12px + var(--safe-left, 0px));
+         font: var(--text-body)/1.45 var(--font); color: var(--ink); -webkit-font-smoothing: antialiased;
+         container: widget / inline-size; }
+  h1 { font-size: var(--text-heading); line-height: 1.3; margin: 0; font-weight: 600; letter-spacing: var(--st-tracking-tight); color: var(--heading); }
+  h2 { font-size: var(--text-body); line-height: 1.4; margin: 0; font-weight: 600; color: var(--heading); }
+  p { margin: 0; }
+  a { color: var(--link); text-underline-offset: 2px; }
+  :focus-visible { outline: var(--st-focus-ring-width) solid var(--ring); outline-offset: var(--st-focus-ring-offset); }
+  .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .id { font-family: var(--mono); overflow-wrap: anywhere; }  /* a source, dataset or column name people copy */
+  .caption { font-size: var(--text-caption); color: var(--muted); }
+
+  /* --- controls: 44px targets -------------------------------------------------------------------------------- */
+  button { font: 500 var(--text-body)/1.2 var(--font); min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: var(--radius-control);
+           cursor: pointer; border: 1px solid var(--line-control); background: transparent; color: var(--ink);
+           transition: background-color var(--st-duration-fast) var(--st-ease-standard), border-color var(--st-duration-fast) var(--st-ease-standard); }
+  button:hover { background: var(--hover); }
+  button:active { background: var(--raised); }
+  button:disabled { opacity: 0.55; cursor: default; }
+  button.primary { background: var(--st-color-accent); border-color: var(--st-color-accent); color: var(--st-color-on-accent); }
+  button.primary:hover { background: var(--st-color-accent-hover); border-color: var(--st-color-accent-hover); }
+  /* a quiet action inside a row or a sentence: link-coloured text on a full-size target */
+  button.quiet { border-color: transparent; color: var(--link); padding: 0 8px; text-decoration: underline; text-underline-offset: 2px; }
+  button.quiet:hover { background: var(--hover); }
+  /* In a table cell (Show, Hide) the quiet button is drawn compact so a row of data stays a row; its ::after
+     reaches 6px past the top and bottom, which keeps the target 44px tall without growing the row. */
+  td button.quiet { min-height: 32px; position: relative; }
+  td button.quiet::after { content: ""; position: absolute; inset: -6px 0; }
+  input:not([type="checkbox"]), select, textarea { font: var(--text-body)/1.3 var(--font); min-height: 44px; min-width: 44px; width: 100%;
+           padding: 8px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-control);
+           border-radius: var(--radius-control); }
+  textarea { resize: vertical; }
+  summary { min-height: 44px; min-width: 44px; display: flex; align-items: center; gap: 6px; cursor: pointer; width: max-content;
+            max-width: 100%; color: var(--link); }
+  /* a checkbox is reached through its label, which is the 44px target */
+  label.check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; min-width: 44px; cursor: pointer; color: var(--ink); }
+  label.check input[type="checkbox"] { width: 18px; height: 18px; margin: 0 0 0 4px; flex: none; accent-color: var(--st-color-accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  /* --- the three states: a wait, an empty answer, a failed call ------------------------------------------------- */
+  /* Bones where the answer will be. They fade in only once the wait is long enough to notice (300ms), so a quick
+     answer never flashes them; with reduced motion they show at once and hold still. */
+  .skeleton > [aria-hidden] { animation: fade var(--st-duration-fast) var(--st-ease-standard) 300ms both; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .bone { display: block; height: 0.75em; max-width: 100%; border-radius: var(--radius-control); background: var(--line-control);
+          animation: breathe 1.6s var(--st-ease-standard) infinite; }
+  .bone.title { width: 9em; height: 1em; }
+  .bone.s { width: 6em; } .bone.m { width: 12em; } .bone.l { width: 20em; } .bone.full { width: 100%; }
+  .bone.row { width: 100%; height: 44px; opacity: 0.6; }
+  @keyframes breathe { 50% { opacity: 0.45; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  /* Empty: one sentence of what would be here, then the next step. */
+  .empty { display: grid; gap: 4px; padding: 4px 0; }
+  .empty p { color: var(--ink); max-width: 60ch; }
+  .empty .next, .problem .next, .notice .next { color: var(--muted); }
+  /* A failed call: what didn't happen, Portward's words, the next step, on the blocked bar. */
+  .problem, .notice { display: grid; gap: 4px; border: 1px solid var(--st-trust-blocked-border); border-left-width: 4px;
+                      border-radius: var(--radius-control); padding: 12px 16px; max-width: 60ch; }
+  .problem h2 { color: var(--st-trust-blocked-text); }
+  .problem details p { color: var(--muted); }
+  /* A notice: something worked only in part (real values unavailable, a weak match), on the partial bar. */
+  .notice { border-color: var(--st-trust-partial-border); }
+  .notice h2 { color: var(--st-trust-partial-text); }
+  .status { color: var(--muted); }
+  .status[data-tone="ok"] { color: var(--st-trust-grounded-text); }
+  .status[data-tone="err"] { color: var(--st-trust-blocked-text); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }

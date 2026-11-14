@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "portward": {
+      "command": "uvx",
+      "args": ["portward-free==0.1.0"]
+    }
+  }
+}

@@ -1,0 +1,130 @@
+# The Claude Desktop extension: build the .mcpb on each OS and CPU it ships for, then run the extension tests
+# against the built file (unpacked as Claude Desktop does, launched without Python, the package's smoke test).
+#
+# Signing is off until the code-signing certificates exist (#31). Add these repository secrets and it switches on:
+#   macOS:   MACOS_CERT_P12 (base64 Developer ID Application .p12), MACOS_CERT_PASSWORD, MACOS_SIGN_IDENTITY
+#            ("Developer ID Application: <name> (<team id>)"); for notarization also APPLE_ID, APPLE_TEAM_ID,
+#            APPLE_APP_PASSWORD (an app-specific password).
+#   Windows: WINDOWS_CERT_PFX (base64 .pfx), WINDOWS_CERT_PASSWORD. (A cloud/HSM certificate instead needs its
+#            vendor's signtool setup; the build only needs the certificate's thumbprint in the cert store.)
+# The built files are kept as workflow artifacts for a person to try in Claude Desktop. Nothing is published.
+#
+# It runs for a release (release.yml calls it on a `v*` tag) and when a person starts it by hand (Actions >
+# extension > Run workflow, on any branch). It does not run on pushes or pull requests: macOS runners bill at
+# about ten times Linux and Windows at about twice, and each run compiles on three of them. Before a release, or
+# after a change to mcpb/ or the server's start-up, run it by hand on the branch.
+name: extension
+
+on:
+  workflow_dispatch:
+  workflow_call:  # release.yml builds the release's .mcpb files with this same job
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  mcpb:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, label: macos-arm64 }
+          - { runner: macos-15-intel, label: macos-x64 }
+          - { runner: windows-2025, label: windows-x64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      HAS_MACOS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+      HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Tests (manifest and signing step)
+        run: uv run --frozen pytest -q tests/test_mcpb.py
+
+      - name: Signing certificate (macOS)
+        if: runner.os == 'macOS' && env.HAS_MACOS_CERT == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -hex 16)
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          # shellcheck disable=SC2046  # one argument per existing keychain
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "PORTWARD_MACOS_SIGN_IDENTITY=$MACOS_SIGN_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Notary credentials (macOS)
+        if: runner.os == 'macOS' && env.HAS_MACOS_CERT == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials portward-notary --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" --keychain "$RUNNER_TEMP/signing.keychain-db"
+          echo "PORTWARD_NOTARY_PROFILE=portward-notary" >> "$GITHUB_ENV"
+
+      - name: Signing certificate (Windows)
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERT == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_PFX))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          "PORTWARD_WINDOWS_CERT_SHA1=$($cert.Thumbprint)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          $signtool.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Build the extension
+        run: |
+          built=$(uv run --frozen python mcpb/build_mcpb.py --out dist)  # prints the file's path (native form)
+          case "$built" in *"-${{ matrix.label }}.mcpb") ;; *) echo "built $built on ${{ matrix.label }}"; exit 1;; esac
+          echo "PORTWARD_MCPB=$built" >> "$GITHUB_ENV"
+
+      - name: Tests (built extension)
+        env:
+          PORTWARD_TEST_REAL_KEYCHAIN: "1"  # a fresh runner: the build creates its own keychain entry, nothing asks
+        run: uv run --frozen pytest -q tests/test_mcpb.py -rs
+
+      - name: Check the signature (when signed)
+        if: env.PORTWARD_MACOS_SIGN_IDENTITY != '' || env.PORTWARD_WINDOWS_CERT_SHA1 != ''
+        run: |
+          npx --yes @anthropic-ai/mcpb@2.1.2 unpack "$PORTWARD_MCPB" "$RUNNER_TEMP/signed"
+          if [ "$RUNNER_OS" = macOS ]; then
+            codesign --verify --strict --verbose=2 "$RUNNER_TEMP/signed/server/portward-free"
+          else
+            signtool verify //pa //v "$RUNNER_TEMP/signed/server/portward-free.exe"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portward-${{ matrix.label }}
+          path: dist/*.mcpb
+          retention-days: 14
+          if-no-files-found: error

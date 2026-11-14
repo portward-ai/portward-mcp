@@ -1,0 +1,49 @@
+[project]
+name = "portward-free"
+version = "0.1.0"
+description = "Choose what Claude sees from your database: a local MCP server that pulls from your own data"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "certifi>=2026.10.23",
+    "cryptography>=46",
+    "duckdb>=1.5",
+    "fpdf2>=2.8",
+    "keyring>=25",
+    "mcp>=2.3,<3",
+    "openpyxl>=3.1",
+    "psycopg[binary]>=3.3.6",
+    "pymysql>=1.2.3",
+    "sqlglot>=30.24.0",
+    "uvicorn>=0.54",
+]
+
+[project.urls]
+Homepage = "https://portward.ai"
+Documentation = "https://docs.portward.ai"
+Repository = "https://github.com/hamzaelsiesy/portward-mcp"
+Issues = "https://github.com/hamzaelsiesy/portward-mcp/issues"
+
+[project.scripts]
+portward-free = "portward_free.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "anyio>=4.15.1",
+    "jsonschema>=4.26.0",
+    "pypdf>=5",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: needs the test Postgres (port 15432) and MySQL (port 13306); skips when they are down"]

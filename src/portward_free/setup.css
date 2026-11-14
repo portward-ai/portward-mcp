@@ -1,0 +1,94 @@
+/* The setup page (#118), served after page.css and profile_editor.css: three numbered steps down one column, the
+   line between them a rail that turns green once a step is done. Database or file fields show by the kind picked,
+   with :has() and no script. Ticked columns take the clay "kept" colour; suggestions carry a honey "looks personal"
+   tag, always with its words. */
+
+.setup { display: grid; gap: var(--st-space-6); padding-block: var(--st-space-8) var(--st-space-section); max-width: 52rem; }
+.setup-head { display: grid; gap: var(--st-space-3); }
+.setup-head h1, .done-page h1 { font-size: clamp(1.625rem, 1.2rem + 1.8vw, 2.5rem); line-height: 1.15; overflow-wrap: anywhere; }
+.setup-problem { font-weight: var(--st-weight-medium); }
+.hint { font-size: var(--st-text-body-sm); line-height: var(--st-leading-body-sm); color: var(--ink-2); font-weight: var(--st-weight-regular); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.step { position: relative; display: grid; gap: var(--st-space-4); padding: 0 0 var(--st-space-8) calc(2.25rem + var(--st-space-4)); min-width: 0; }
+.step::before { content: ""; position: absolute; left: calc(1.125rem - 1px); top: 2.5rem; bottom: var(--st-space-2); width: 2px; background: var(--rule); }
+.step:last-child::before { display: none; }
+.step.done::before { background: var(--st-trust-grounded-border); }
+.step h2 { display: flex; align-items: center; gap: var(--st-space-3); font-size: var(--st-text-body-lg); line-height: 1.25; margin-left: calc(-2.25rem - var(--st-space-4)); }
+.num { flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; font-size: var(--st-text-body-sm);
+       font-variant-numeric: tabular-nums; border: 2px solid var(--st-color-heading); color: var(--st-color-heading); background: var(--paper); }
+.step.done .num { border-color: var(--st-trust-grounded-border); background: var(--st-trust-grounded-surface); color: var(--st-trust-grounded-text); }
+@media (max-width: 30rem) {
+  .step { padding-left: 0; }
+  .step::before { display: none; }
+  .step h2 { margin-left: 0; }
+}
+
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--st-space-2); }
+legend { padding: 0; margin-bottom: var(--st-space-2); font-size: var(--st-text-body-sm); font-weight: var(--st-weight-medium); color: var(--ink); }
+
+/* step 1: the kind picker is the editor's segmented control, five across, wrapping on a phone */
+.locate { display: grid; gap: var(--st-space-4); }
+.kinds .seg { grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
+.kinds .seg label { font-size: var(--st-text-body-sm); }
+@media (max-width: 30rem) { .kinds .seg label { padding: 0 var(--st-space-2); } }
+.grid2 { display: grid; gap: var(--st-space-3) var(--st-space-4); min-width: 0; }
+@media (min-width: 40rem) { .grid2 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } .grid2 .wide { grid-column: 1 / -1; } }
+input[type="password"], input[type="number"] { font: var(--st-text-body-base)/1.3 var(--st-font-sans); min-height: var(--st-control-height); padding: 0 var(--st-space-3); width: 100%;
+  color: var(--ink); background: var(--card); border: 1px solid var(--st-color-border-control); border-radius: var(--st-radius-control); }
+input[type="text"]:hover, input[type="password"]:hover, input[type="number"]:hover { border-color: var(--st-color-heading); }
+input::placeholder { color: var(--ink-3); }
+.locate:has(input[name="kind"][value="sqlite"]:checked) .db,
+.locate:has(input[name="kind"][value="csv"]:checked) .db,
+.locate:has(input[name="kind"][value="excel"]:checked) .db,
+.locate:has(input[name="kind"][value="postgres"]:checked) .file,
+.locate:has(input[name="kind"][value="mysql"]:checked) .file { display: none; }
+
+.finish { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-3) var(--st-space-4); }
+.finish .primary { min-height: 48px; padding-inline: var(--st-space-5); }
+
+.summary { display: grid; gap: var(--st-space-2) var(--st-space-6); margin: 0; }
+@media (min-width: 40rem) { .summary { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); } }
+.summary div { display: grid; gap: 2px; min-width: 0; }
+.summary dt { font-size: var(--st-text-body-xs); color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.summary dd { margin: 0; overflow-wrap: anywhere; }
+.step .quiet { justify-self: start; min-height: 44px; }
+
+/* step 2: what the check found */
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--st-space-2); }
+.checks li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: var(--st-space-2); align-items: baseline; overflow-wrap: anywhere; }
+.mark-y { color: var(--st-trust-grounded-text); font-weight: var(--st-weight-semibold); }
+.mark-w { color: var(--st-trust-partial-text); font-weight: var(--st-weight-semibold); }
+.checks li.warn { color: var(--st-trust-partial-text); }
+
+/* step 3: the mode, then the columns */
+.modes { gap: var(--st-space-3); }
+@media (min-width: 40rem) { .modes { grid-template-columns: 1fr 1fr; } .modes legend { grid-column: 1 / -1; } }
+.mode { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--st-space-3); align-items: start; padding: var(--st-space-4);
+        background: var(--card); border: 1px solid var(--line); border-radius: var(--st-radius-card); cursor: pointer;
+        transition: border-color var(--st-duration-fast) var(--st-ease-standard), box-shadow var(--st-duration-fast) var(--st-ease-standard); }
+.mode:hover { border-color: var(--st-color-heading); }
+.mode:has(input:checked) { border-color: var(--st-color-accent); box-shadow: inset 0 0 0 1px var(--st-color-accent), var(--st-elevation-raised); }
+.mode:has(input:focus-visible) { outline: var(--st-focus-ring-width) solid var(--st-focus-ring-color); outline-offset: var(--st-focus-ring-offset); }
+.mode input { margin: 3px 0 0; width: 18px; height: 18px; accent-color: var(--st-color-accent); }
+.mode > span { display: grid; gap: var(--st-space-1); }
+.mode strong { font-weight: var(--st-weight-semibold); color: var(--st-color-heading); }
+
+.keeps .hint { max-width: 60ch; }
+.tables { display: grid; border-top: 1px solid var(--rule); }
+.tables details { border-bottom: 1px solid var(--hair); }
+.tables summary { display: flex; flex-wrap: wrap; width: 100%; color: var(--ink); font-size: var(--st-text-body-base); }
+.tables summary .ct { margin-left: auto; font-size: var(--st-text-body-sm); color: var(--ink-2); }
+.cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); gap: var(--st-space-1) var(--st-space-3); padding: 0 0 var(--st-space-4); }
+.check { display: flex; flex-wrap: wrap; align-items: center; gap: var(--st-space-2); min-height: 44px; padding: 0 var(--st-space-2); border-radius: var(--st-radius-control);
+         border-left: 3px solid transparent; cursor: pointer; font-weight: var(--st-weight-regular); }
+.check:hover { background: var(--st-color-surface-hover); }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--st-trust-blocked-text); }
+.check:has(input:checked) { border-left-color: var(--st-trust-blocked-border); background: var(--st-blocked-100); }
+.check:has(input:checked) code { color: var(--st-trust-blocked-text); }
+.check:has(input:disabled) { cursor: default; }
+.tag.look { border-color: var(--st-trust-partial-border); color: var(--st-trust-partial-text); background: var(--st-trust-partial-surface); }
+.tag.kept-tag { border-color: var(--st-trust-blocked-border); color: var(--st-trust-blocked-text); background: var(--card); }
+
+.done-page { gap: var(--st-space-4); }
+.connect { display: inline-flex; align-items: center; min-height: 44px; font-weight: var(--st-weight-medium); }

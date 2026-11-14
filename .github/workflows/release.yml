@@ -1,0 +1,121 @@
+# Release build of the free tool: on a `v<version>` tag, build the wheel and sdist, test them, build the
+# Desktop extension (.mcpb) on each OS it ships for, and keep everything as workflow artifacts. Nothing is published
+# unless every gate below is opened on purpose.
+#
+# Publishing is off. It needs all of these, in this order:
+#   1. A PyPI project `portward-free` with a trusted publisher for this repository, this workflow file
+#      (release.yml) and the environment `pypi` (https://docs.pypi.org/trusted-publishers/). No API token is stored.
+#   2. The repository variable PUBLISH_ENABLED set to `true`.
+#   3. A person runs this workflow by hand (Actions > release > Run workflow) on the tag, with `publish` ticked.
+#   The `pypi` environment should also require a reviewer, so a publish waits for one more click.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the wheel and sdist to PyPI (needs PUBLISH_ENABLED=true and a v* tag)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: The tag names the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n 1)
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "tag $GITHUB_REF_NAME, package $version"; exit 1; }
+
+      - name: Start the test databases (the integration tests skip when they are down)
+        run: |
+          docker run -d --name pg -e POSTGRES_PASSWORD=pw -p 127.0.0.1:15432:5432 postgres:16-alpine
+          docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=pw -p 127.0.0.1:13306:3306 mysql:8
+
+      - name: Build the wheel and sdist
+        run: |
+          rm -rf dist
+          uv build --out-dir dist
+          ls -l dist
+          uvx --from twine==6.2.0 twine check --strict dist/*
+
+      - name: The wheel installs and runs in a fresh environment (no project, no dev dependencies)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/fresh"
+          "$RUNNER_TEMP/fresh/bin/pip" install --quiet dist/*.whl
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -n 1)
+          "$RUNNER_TEMP/fresh/bin/portward-free" --version | grep -F "$version"
+
+      - name: Full test suite (includes the smoke test against the built wheel)
+        run: uv run --frozen pytest -q -p no:cacheprovider
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portward-free-python
+          path: dist/*
+          retention-days: 30
+          if-no-files-found: error
+
+  mcpb:
+    # The same build as extension.yml (macOS arm64 and x64, Windows x64). It signs when the certificates of #31
+    # are in the repository secrets and leaves the build unsigned otherwise.
+    uses: ./.github/workflows/extension.yml
+    secrets: inherit
+
+  release-check:
+    needs: [python, mcpb]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Signing
+        working-directory: .
+        env:
+          HAS_MACOS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+          HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}
+          HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERT_PFX != '' }}
+        run: |
+          # TODO(#31): once the Apple Developer ID and Windows code-signing certificates exist, turn these warnings
+          # into failures for tag builds, so an unsigned .mcpb can never be attached to a release.
+          [ "$HAS_MACOS_CERT" = true ] || echo "::warning::macOS .mcpb is unsigned (no MACOS_CERT_P12 secret, #31)"
+          [ "$HAS_NOTARY" = true ] || echo "::warning::macOS .mcpb is not notarized (no APPLE_APP_PASSWORD secret, #31)"
+          [ "$HAS_WINDOWS_CERT" = true ] || echo "::warning::Windows .mcpb is unsigned (no WINDOWS_CERT_PFX secret, #31)"
+
+  publish-pypi:
+    # Off until every gate in the header is open. Trusted publishing: no token, only a short-lived OIDC identity.
+    needs: [python, mcpb, release-check]
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.publish &&
+      vars.PUBLISH_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/portward-free/
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: portward-free-python
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+      # TODO: after PyPI, publish server.json to the MCP registry. Its name `ai.portward/portward` needs the
+      # registry's DNS proof for portward.ai (a TXT record on the apex and an Ed25519 key in a repository secret):
+      #   mcp-publisher login dns --domain portward.ai --private-key "$MCP_REGISTRY_KEY" && mcp-publisher publish
+      # TODO: attach the signed .mcpb files to a draft GitHub release for a person to publish.
