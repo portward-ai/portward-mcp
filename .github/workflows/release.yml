@@ -73,7 +73,7 @@ jobs:
           if-no-files-found: error
 
   mcpb:
-    # The same build as extension.yml (macOS arm64 and x64, Windows x64). It signs when the certificates of #31
+    # The same build as extension.yml (macOS arm64, Windows x64). It signs when the certificates of #31
     # are in the repository secrets and leaves the build unsigned otherwise.
     uses: ./.github/workflows/extension.yml
     secrets: inherit

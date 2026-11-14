@@ -11,7 +11,7 @@
 #
 # It runs for a release (release.yml calls it on a `v*` tag) and when a person starts it by hand (Actions >
 # extension > Run workflow, on any branch). It does not run on pushes or pull requests: macOS runners bill at
-# about ten times Linux and Windows at about twice, and each run compiles on three of them. Before a release, or
+# about ten times Linux and Windows at about twice, and each run compiles on one of each. Before a release, or
 # after a change to mcpb/ or the server's start-up, run it by hand on the branch.
 name: extension
 
@@ -33,10 +33,11 @@ jobs:
       matrix:
         include:
           - { runner: macos-15, label: macos-arm64 }
-          - { runner: macos-15-intel, label: macos-x64 }
+          # No Intel Mac build: cryptography ships no Intel Mac wheel, and one compiled on the runner links the
+          # runner's own OpenSSL, which can't go in the bundle.
           - { runner: windows-2025, label: windows-x64 }
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 90  # the Apple silicon compile alone has taken 48 minutes
     env:
       HAS_MACOS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
       HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}

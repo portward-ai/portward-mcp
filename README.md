@@ -30,7 +30,7 @@ runs read-only queries.
 ## Install
 
 Claude Desktop: download the extension for your computer (`portward-<version>-macos-arm64.mcpb` for Apple
-silicon Macs, `-macos-x64` for Intel Macs, `-windows-x64` for Windows) and open it. Claude Desktop asks you to
+silicon Macs, `-windows-x64` for Windows) and open it. There is no build for Intel Macs. Claude Desktop asks you to
 install it. Nothing else is needed: no Python, no terminal.
 
 For Claude Code and ChatGPT desktop you need [uv](https://docs.astral.sh/uv/getting-started/installation/). Your AI
@@ -452,7 +452,7 @@ This folder is its own package (`portward-free`, module `portward_free`), with n
     uv run portward-free               # the MCP server over stdio
     claude mcp add portward -- uv --directory /path/to/free run portward-free
 
-The Claude Desktop extension is built on the OS and CPU it is for (CI builds all three: `.github/workflows/extension.yml`). It needs uv, node and a C compiler (Xcode command line tools, or Visual Studio on Windows):
+The Claude Desktop extension is built on the OS and CPU it is for (CI builds both, Apple silicon Mac and Windows: `.github/workflows/extension.yml`). It needs uv, node and a C compiler (Xcode command line tools, or Visual Studio on Windows):
 
     uv run python mcpb/build_mcpb.py --out dist                # Nuitka-compiled, packed as dist/*.mcpb
     PORTWARD_MCPB=dist/portward-0.1.0-macos-arm64.mcpb uv run pytest tests/test_mcpb.py
