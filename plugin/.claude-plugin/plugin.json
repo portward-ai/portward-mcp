@@ -9,5 +9,16 @@
   "homepage": "https://docs.portward.ai",
   "repository": "https://github.com/hamzaelsiesy/portward-mcp",
   "license": "Apache-2.0",
-  "keywords": ["database", "sql", "sqlite", "local", "read-only", "data"]
+  "keywords": [
+    "database",
+    "sql",
+    "sqlite",
+    "local",
+    "read-only",
+    "data"
+  ],
+  "icon": "./icon.png",
+  "documentationUrl": "https://docs.portward.ai",
+  "privacyPolicyUrl": "https://portward.ai/privacy",
+  "termsOfServiceUrl": "https://portward.ai/terms"
 }
