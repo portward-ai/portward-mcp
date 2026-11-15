@@ -5,10 +5,11 @@ tells Claude when to use it.
 
 ## What it runs
 
-`uvx portward-free==0.1.0`, the open-source `portward-free` package from PyPI at that exact version, started by
-Claude Code over stdio on your machine. You need [uv](https://docs.astral.sh/uv/getting-started/installation/);
-the first start downloads the package and its dependencies (the MCP SDK, sqlglot, DuckDB and openpyxl) from
-PyPI.
+The open-source `portward-free` package, version 0.1.0, started by Claude Code over stdio on your machine. The
+plugin carries the package itself (`vendor/portward_free-0.1.0-py3-none-any.whl`, the same file published on PyPI),
+so the code that runs is the code in this folder. You need
+[uv](https://docs.astral.sh/uv/getting-started/installation/); the first start downloads the package's dependencies
+(the MCP SDK, sqlglot, DuckDB, openpyxl and others) from PyPI.
 
 ## What it reads, sends and keeps
 

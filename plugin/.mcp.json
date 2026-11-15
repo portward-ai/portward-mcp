@@ -2,7 +2,11 @@
   "mcpServers": {
     "portward": {
       "command": "uvx",
-      "args": ["portward-free==0.1.0"]
+      "args": [
+        "--from",
+        "${CLAUDE_PLUGIN_ROOT}/vendor/portward_free-0.1.0-py3-none-any.whl",
+        "portward-free"
+      ]
     }
   }
 }

@@ -464,4 +464,5 @@ unsigned, which is fine for testing but makes macOS and Windows warn on install.
 Listing files: `server.json` (MCP registry), `mcpb/manifest.json` (Claude Desktop extension),
 `.claude-plugin/marketplace.json` and `plugin/` (Claude Code plugin).
 When you change the version in `pyproject.toml`, change it in those files and this README too; the tests fail until
-they agree.
+they agree. After a release, replace the wheel in `plugin/vendor/` with the one published to PyPI
+and update `plugin/.mcp.json`: the plugin starts the server from that file.
