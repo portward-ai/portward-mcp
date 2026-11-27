@@ -54,7 +54,7 @@ args = ["portward-free==0.1.0"]
 
 Claude Code and Cowork can also install it as a plugin, which adds a skill that tells Claude when to use it:
 
-    /plugin marketplace add hamzaelsiesy/portward-mcp
+    /plugin marketplace add portward-ai/portward-mcp
     /plugin install portward@portward
 
 ## Update

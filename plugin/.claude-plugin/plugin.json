@@ -7,7 +7,7 @@
     "url": "https://portward.ai"
   },
   "homepage": "https://docs.portward.ai",
-  "repository": "https://github.com/hamzaelsiesy/portward-mcp",
+  "repository": "https://github.com/portward-ai/portward-mcp",
   "license": "Apache-2.0",
   "keywords": [
     "database",

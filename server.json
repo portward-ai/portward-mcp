@@ -5,7 +5,7 @@
   "description": "Choose what the AI sees from your own database: local, read-only, every pull recorded.",
   "websiteUrl": "https://portward.ai",
   "repository": {
-    "url": "https://github.com/hamzaelsiesy/portward-mcp",
+    "url": "https://github.com/portward-ai/portward-mcp",
     "source": "github"
   },
   "version": "0.1.0",

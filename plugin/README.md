@@ -22,14 +22,14 @@ so the code that runs is the code in this folder. You need
   they are on (Portward asks you first); a table you share with a teammate, encrypted; your account and synced
   history if you sign in to Portward Personal; and a database login you put on the hosted route. The main README
   lists every case and exactly what is sent:
-  https://github.com/hamzaelsiesy/portward-mcp#what-leaves-your-computer-and-when
+  https://github.com/portward-ai/portward-mcp#what-leaves-your-computer-and-when
 - Privacy policy: https://portward.ai/privacy
 - It keeps one local database file in your app-data folder with your sources, settings and a record of every
   pull (the question, the SQL, the row count and a hash of the result, not the rows). Updating the plugin keeps it.
 
 ## Install
 
-    /plugin marketplace add hamzaelsiesy/portward-mcp
+    /plugin marketplace add portward-ai/portward-mcp
     /plugin install portward@portward
 
 Or without the plugin: `claude mcp add --scope user --transport stdio portward -- uvx portward-free==0.1.0`.

@@ -23,8 +23,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://portward.ai"
 Documentation = "https://docs.portward.ai"
-Repository = "https://github.com/hamzaelsiesy/portward-mcp"
-Issues = "https://github.com/hamzaelsiesy/portward-mcp/issues"
+Repository = "https://github.com/portward-ai/portward-mcp"
+Issues = "https://github.com/portward-ai/portward-mcp/issues"
 
 [project.scripts]
 portward-free = "portward_free.cli:main"
